@@ -1,3 +1,5 @@
+#Do not use double quotes (")
+#Also, after 100 characters, stuff breaks. You don't need anything more than that really.
 Alaskan Firedragon
 ABC Sex
 Angry Pirate
