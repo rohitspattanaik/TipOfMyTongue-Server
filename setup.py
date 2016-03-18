@@ -85,12 +85,37 @@ def populateDatabase(source):
             continue
 
         word = word.replace('\n', '')
+        ret = True
         try:
             dbCursor.execute(sql % word)
         except MySQLdb.Error as e:
             print("Error while adding word: %s to database." % word + "\nError message:")
             print(e)
+            ret = False
+            continue
 
     db.commit()
     dbCursor.close()
     db.close()
+    return ret
+
+#The main function which will handle server setup.
+#After this function runs, the database will be populated
+def setup():
+
+    print("Server setup started")
+
+    if not createGameDatabase():
+        print("\nFailed to create database.")
+        return False
+    print("Database created")
+
+    try:
+        file = open(setupConfig.sourceFileName, "r")
+    except IOError as e:
+        print("Failed to open source file.")
+        return False
+
+    if not populateDatabase(file):
+        print("\nFailed to populate database properly.")
+    print("Database populated")
