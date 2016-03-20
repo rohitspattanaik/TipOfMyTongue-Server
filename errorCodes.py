@@ -1,6 +1,8 @@
 good = 0
 
-invalidUser = 100
-invalidType = 110
+jsonError = 100
 
-roomSocketError = 200
+invalidUser = 200
+invalidType = 210
+
+roomSocketError = 300

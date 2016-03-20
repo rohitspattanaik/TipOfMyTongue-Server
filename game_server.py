@@ -16,14 +16,27 @@ signal.signal(signal.SIGINT, signalHandler)
 def handleInbound(conn):
     returnMessage = dict()
     returnMessage["status"] = "connected"
-    conn.send(json.dump(returnMessage)) #send only takes string
+    conn.send(json.dumps(returnMessage)) #send only takes string
 
-    data = conn.recv()
-    data = json.loads(data)[0]
+    data = conn.recv(1024)
+
+    try:
+        data = json.loads(data)[0]
+    except:
+        print("Error parsing data")
+        returnMessage.clear()
+        returnMessage["status"] = "error"
+        returnMessage["error"] = errorCodes.jsonError
+        conn.send(json.dumps(returnMessage))
+        conn.close()
+        return
+
     if data["users"] == "":
         returnMessage.clear()
         returnMessage["error"] = str(errorCodes.invalidUser)
         conn.send(json.dump(returnMessage))
+        conn.close()
+        return
 
     type = data["type"]
     if type == "host":
@@ -60,6 +73,7 @@ def gameRoom(conn, roomPort,roomName, hostName):
         sock.bind((masterConfig.host, roomPort))
     except socket.error as e:
         print("Failed to bind socket. Error: " + str(e[0]) + " , " + e[1])
+        #TODO: send message back to host and close connection here
         return errorCodes.roomSocketError
     print("Room created on port " + str(roomPort) + " for " + hostName)
 
@@ -69,6 +83,8 @@ def gameRoom(conn, roomPort,roomName, hostName):
     returnMessage["port"] = roomPort
     returnMessage["name"] = roomName
     conn.send(json.dumps(returnMessage))
+
+    conn.close()
 
     #TODO: The rest of this...
 
