@@ -12,17 +12,22 @@ def signalHandler(signal, frame):
     sys.exit(0)
 signal.signal(signal.SIGINT, signalHandler)
 
-#Function for handling connections. This will be used to create threads
+def checkFields(message):
+    return message.has_key("user") \
+           and message.has_key("type")
+
+
+#Function for handling connections.
 def handleInbound(conn):
     returnMessage = dict()
     returnMessage["status"] = "connected"
     conn.send(json.dumps(returnMessage)) #send only takes string
 
-    data = conn.recv(1024)
+    data = conn.recv(2048)
 
     try:
-        data = json.loads(data)[0]
-    except:
+        data = json.loads(data)
+    except ValueError:
         print("Error parsing data")
         returnMessage.clear()
         returnMessage["status"] = "error"
@@ -30,11 +35,21 @@ def handleInbound(conn):
         conn.send(json.dumps(returnMessage))
         conn.close()
         return
+    else:
+        #Valid json
+        a=0
 
-    if data["users"] == "":
+    if not checkFields(data):
+        returnMessage.clear()
+        returnMessage["error"] = str(errorCodes.missingDataField)
+        conn.send(json.dumps(returnMessage))
+        conn.close()
+        return
+
+    if data["user"] == "":
         returnMessage.clear()
         returnMessage["error"] = str(errorCodes.invalidUser)
-        conn.send(json.dump(returnMessage))
+        conn.send(json.dumps(returnMessage))
         conn.close()
         return
 
