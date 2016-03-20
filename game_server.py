@@ -1,6 +1,10 @@
-import sys, socket, signal, masterConfig
+import sys, socket, signal, json
+import masterConfig, errorCodes
 from thread import *
 
+roomToPort = dict()
+
+#Intercept ^C to shut server down
 def signalHandler(signal, frame):
     print("Closing server")
     sock.close()
@@ -9,23 +13,66 @@ def signalHandler(signal, frame):
 signal.signal(signal.SIGINT, signalHandler)
 
 #Function for handling connections. This will be used to create threads
-def clientthread(conn):
-    #Sending message to connected client
-    conn.send('Welcome to the server. Type something and hit enter\n') #send only takes string
+def handleInbound(conn):
+    returnMessage = dict()
+    returnMessage["status"] = "connected"
+    conn.send(json.dump(returnMessage)) #send only takes string
 
-    #infinite loop so that function do not terminate and thread do not end.
-    while True:
+    data = conn.recv()
+    data = json.loads(data)[0]
+    if data["users"] == "":
+        returnMessage.clear()
+        returnMessage["error"] = str(errorCodes.invalidUser)
+        conn.send(json.dump(returnMessage))
 
-        #Receiving from client
-        data = conn.recv(1024)
-        reply = 'OK...' + data
-        if not data:
-            break
+    type = data["type"]
+    if type == "host":
+        a=0
+        #TODO: Find new port, create session and send port back to host
+    elif type == "guest":
+        a=0
+        #TODO: Get room code, find matching port and send back
+    else:
+        returnMessage.clear()
+        returnMessage["status"] = "error"
+        returnMessage["error"] = str(errorCodes.invalidType)
+        conn.send(json.dumps(returnMessage))
 
-        conn.sendall(reply)
 
-    #came out of loop
-    conn.close()
+    # #infinite loop so that function do not terminate and thread do not end.
+    # while True:
+    #
+    #     #Receiving from client
+    #     data = conn.recv(1024)
+    #     reply = 'OK...' + data
+    #     if not data:
+    #         break
+    #
+    #     conn.sendall(reply)
+    #
+    # #came out of loop
+    # conn.close()
+
+def gameRoom(conn, roomPort,roomName, hostName):
+    #initial room setup
+    roomSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind((masterConfig.host, roomPort))
+    except socket.error as e:
+        print("Failed to bind socket. Error: " + str(e[0]) + " , " + e[1])
+        return errorCodes.roomSocketError
+    print("Room created on port " + str(roomPort) + " for " + hostName)
+
+    #let host know that room is ready
+    returnMessage = dict()
+    returnMessage["status"] = "success"
+    returnMessage["port"] = roomPort
+    returnMessage["name"] = roomName
+    conn.send(json.dumps(returnMessage))
+
+    #TODO: The rest of this...
+
+
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print("Socket created")
@@ -48,6 +95,6 @@ print("Close server with ^C")
 while 1:
     conn, addr = sock.accept()
 
-    start_new_thread(clientthread, (conn,))
+    start_new_thread(handleInbound, (conn,))
 
 sock.close()
