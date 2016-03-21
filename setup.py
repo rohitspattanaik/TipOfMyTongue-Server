@@ -1,4 +1,4 @@
-import MySQLdb, setupConfig
+import MySQLdb, dbConfig
 
 #function used in testing only. Reads staight from opened file
 def createListFromFile(source):
@@ -8,40 +8,18 @@ def createListFromFile(source):
         list.append(word)
     return list
 
-def createList():
-    list = []
-
-    try:
-        db = MySQLdb.connect(setupConfig.dbHost, setupConfig.dbUser, setupConfig.dbPassword, setupConfig.dbName)
-    except MySQLdb.Error as e:
-        print("Unable to connect to database.\nReturning empty list.\nError message: ")
-        print(e)
-        return list
-
-    dbCursor = db.cursor()
-    sql = "SELECT word FROM wordbank"
-    try:
-        dbCursor.execute(sql)
-    except MySQLdb.Error as e:
-        print("Error fetching results from database. Probably SQL error.\nError message:")
-        print(e)
-
-    for word in dbCursor:
-        list.append(word[0])
-
-    return list
 
 def createGameDatabase():
     try:
-        db = MySQLdb.connect(setupConfig.dbHost, setupConfig.dbUser, setupConfig.dbPassword)
+        db = MySQLdb.connect(dbConfig.dbHost, dbConfig.dbUser, dbConfig.dbPassword)
         dbCursor = db.cursor()
 
-        sql = "DROP DATABASE IF EXISTS " + setupConfig.dbName
+        sql = "DROP DATABASE IF EXISTS " + dbConfig.dbName
         dbCursor.execute(sql)
 
-        sql = "CREATE DATABASE " + setupConfig.dbName
+        sql = "CREATE DATABASE " + dbConfig.dbName
         dbCursor.execute(sql)
-        sql = "USE " + setupConfig.dbName
+        sql = "USE " + dbConfig.dbName
         dbCursor.execute(sql)
     except MySQLdb.Error as e:
         print("Error while creating database.\nError message:")
@@ -71,7 +49,7 @@ def createTables(dbCursor):
 
 def populateDatabase(source):
     try:
-        db = MySQLdb.connect(setupConfig.dbHost, setupConfig.dbUser, setupConfig.dbPassword, setupConfig.dbName)
+        db = MySQLdb.connect(dbConfig.dbHost, dbConfig.dbUser, dbConfig.dbPassword, dbConfig.dbName)
     except MySQLdb.Error as e:
         print("Unable to connect to database.\nError message: ")
         print(e)
@@ -111,7 +89,7 @@ def setup():
     print("Database created")
 
     try:
-        file = open(setupConfig.sourceFileName, "r")
+        file = open(dbConfig.sourceFileName, "r")
     except IOError as e:
         print("Failed to open source file.")
         return False

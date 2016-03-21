@@ -101,7 +101,30 @@ def gameRoom(conn, roomPort,roomName, hostName):
 
     conn.close()
 
-    #TODO: The rest of this...
+    playerList = []
+
+def createList():
+    list = []
+
+    try:
+        db = MySQLdb.connect(setupConfig.dbHost, setupConfig.dbUser, setupConfig.dbPassword, setupConfig.dbName)
+    except MySQLdb.Error as e:
+        print("Unable to connect to database.\nReturning empty list.\nError message: ")
+        print(e)
+        return list
+
+    dbCursor = db.cursor()
+    sql = "SELECT word FROM wordbank"
+    try:
+        dbCursor.execute(sql)
+    except MySQLdb.Error as e:
+        print("Error fetching results from database. Probably SQL error.\nError message:")
+        print(e)
+
+    for word in dbCursor:
+        list.append(word[0])
+
+    return list
 
 
 
