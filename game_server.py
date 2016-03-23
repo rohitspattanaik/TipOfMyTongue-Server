@@ -17,12 +17,12 @@ def signalHandler(signal, frame):
 
 signal.signal(signal.SIGINT, signalHandler)
 
-def generateRoomNumber():
+def generateRoomName():
     roomNum = randint(0, 9999)
     if roomToPort.has_key(roomNum):
-        return generateRoomNumber()
+        return generateRoomName()
     else:
-        return roomNum
+        return str(roomNum)
 
 def generatePortNumber():
     port = randint(masterConfig.hostPort+1, masterConfig.hostPort+100)
@@ -60,8 +60,7 @@ def handleInbound(conn):
         handleError(conn, returnMessage, errorCodes.jsonError)
         return
     else:
-        # Valid json
-        a = 0
+        pass
 
     if not checkFields(data):
         handleError(conn, returnMessage, errorCodes.missingDataField)
@@ -74,10 +73,10 @@ def handleInbound(conn):
     type = data["type"]
     if type == "host":
         # TODO: Find new port, create session and send port back to host
-        roomNumber = generateRoomNumber()
+        roomName = generateRoomName()
         roomPort = generatePortNumber()
-        roomToPort[roomNumber] = roomPort
-        ret = gameRoom(conn, roomPort, roomNumber, data["user"])
+        roomToPort[roomName] = roomPort
+        ret = gameRoom(conn, roomPort, roomName, data["user"])
 
     elif type == "guest":
         a = 0
@@ -104,7 +103,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
     returnMessage.clear()
     returnMessage["status"] = "success"
     returnMessage["port"] = roomPort
-    returnMessage["name"] = roomName
+    returnMessage["name"] = str(roomName)
     conn.send(json.dumps(returnMessage))
     # Close this connection so that only the new game room is used
     conn.close()

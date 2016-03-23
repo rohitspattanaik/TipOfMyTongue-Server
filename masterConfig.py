@@ -1,6 +1,6 @@
 gameName = "TipOfMyTongue"
 
-host = ''
+host = 'localhost'
 hostPort = 2000
 
 maxRooms = 2
