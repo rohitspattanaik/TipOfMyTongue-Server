@@ -64,6 +64,31 @@ def playAsHost(sock, name):
         sys.exit(-1)
     return roomSock
 
+def playAsGuest(sock, name):
+    roomName = raw_input("Which room do you want to connect to?\n")
+    message = dict()
+    message["user"] = name
+    message["type"] = "guest"
+    message["name"] = roomName
+    sock.send(json.dumps(message))
+
+    data = sock.recv(2048)
+    data = json.loads(data)
+    roomPort = 0
+    roomName = ""
+    if data["status"] == "error":
+        if data["error"] == errorCodes.roomNotFound:
+            print("Server could not find this room")
+        else:
+            print("Unknown error")
+        sys.exit(-1)
+
+    sock.close()
+    roomSock = connectToRoom(roomName, roomPort, name)
+    if roomSock == None:
+        print("Could not connect to room. Exiting")
+        sys.exit(-1)
+    return roomSock
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,4 +120,4 @@ if type == "host":
 
 elif type == "guest":
     #do guest stuff
-    pass
+    sock = playAsGuest(sock, name)
