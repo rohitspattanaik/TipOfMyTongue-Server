@@ -9,3 +9,4 @@ missingDataField = 220
 roomSocketError = 300
 
 hostNotConnected = 400
+roomNotFound = 410

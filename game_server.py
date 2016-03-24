@@ -1,7 +1,12 @@
 import sys, socket, signal, json, MySQLdb
 import masterConfig, errorCodes, dbConfig
 from random import randint
+from setup import setup
 from thread import *
+
+set = raw_input("Run Server Setup? \n")
+if set in ["Yes", "yes", "Y", "y"]:
+    setup()
 
 roomToPort = dict()
 usedPorts = []
@@ -29,6 +34,8 @@ def generatePortNumber():
     if port in usedPorts:
         return generatePortNumber()
     else:
+        print("Generated: " + str(port))
+        usedPorts.append(port)
         return port
 
 def checkFields(message):
@@ -79,11 +86,26 @@ def handleInbound(conn):
         ret = gameRoom(conn, roomPort, roomName, data["user"])
 
     elif type == "guest":
-        a = 0
         # TODO: Get room code, find matching port and send back
+        roomName = data["name"]
+        try:
+            roomPort = roomToPort[roomName]
+        except KeyError as e:
+            print("Room not found")
+            handleError(conn, returnMessage, errorCodes.roomNotFound)
+            return
+        returnMessage.clear()
+        returnMessage["status"] = "success"
+        returnMessage["name"] = roomName
+        returnMessage["port"] = roomPort
+        conn.send(json.dumps(returnMessage))
     else:
         handleError(conn, returnMessage, errorCodes.invalidType)
 
+def closeRoom(roomSocket, connectionList):
+    for conn in connectionList:
+        conn[0].close()
+    roomSocket.close()
 
 def gameRoom(conn, roomPort, roomName, hostName):
     # initial room setup
@@ -91,7 +113,8 @@ def gameRoom(conn, roomPort, roomName, hostName):
 
     roomSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        sock.bind((masterConfig.host, roomPort))
+        print("binding with: " + str((masterConfig.host, str(roomPort))))
+        roomSocket.bind((masterConfig.host, roomPort))
     except socket.error as e:
         print("Failed to bind socket. Error: " + str(e[0]) + " , " + e[1])
         handleError(conn, returnMessage, errorCodes.roomSocketError)
@@ -108,18 +131,18 @@ def gameRoom(conn, roomPort, roomName, hostName):
     # Close this connection so that only the new game room is used
     conn.close()
 
-    roomSocket.listen(10)
-    print("Room " + roomName + " listening")
     playerList = []
     connectionList = []
 
     wordList = createList()
-    if wordList.count() == 0:
+    if len(wordList) == 0:
         a = 0
         # TODO: add error handling code for this case. Probably return server error to clients or take room down or something
 
     hostConnected = False
     numberOfPlayers = 0
+    roomSocket.listen(10)
+    print("Room " + roomName + " listening")
     # Wait for host to connect before letting anyone else in game room.
     # Need to get the number of players connecting from host
     while not hostConnected:
@@ -135,22 +158,28 @@ def gameRoom(conn, roomPort, roomName, hostName):
         except ValueError:
             print("Error parsing data")
             handleError(conn, returnMessage, errorCodes.jsonError)
+            continue
         else:
             # Valid json
             a = 0
 
         # TODO: add error checking if numberOfPlayers exceeds max allowed
+        print("User " + data["user"] + " is attempting to connect")
         if data["user"] != hostName:
             handleError(conn, returnMessage, errorCodes.hostNotConnected)
         else:
             playerList.append(data["user"])
             connectionList.append((conn, addr))
-            hostConnected = True
             numberOfPlayers = data["numberOfPlayers"]
+
+            returnMessage.clear()
+            returnMessage["status"] = "success"
+            conn.send(json.dumps(returnMessage))
+            hostConnected = True
 
     print("Host connected to game room " + roomName)
 
-    while playerList.count() != numberOfPlayers:
+    while len(playerList) != numberOfPlayers:
         conn, addr = roomSocket.accept()
         returnMessage = dict()
         returnMessage["status"] = "connected"
@@ -172,13 +201,11 @@ def gameRoom(conn, roomPort, roomName, hostName):
         playerList.append(data["user"])
         connectionList.append((conn, addr))
 
-    print("Players connected. Final list of players : " + playerList)
+    print("Players connected. Final list of players : " + str(playerList))
     # do stuff
 
     #temp code to test
-    for conn in connectionList:
-        conn.close
-    roomSocket.close()
+    closeRoom(roomSocket, connectionList)
     return errorCodes.good
 
 
