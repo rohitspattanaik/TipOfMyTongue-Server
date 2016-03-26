@@ -79,14 +79,15 @@ def handleInbound(conn):
 
     type = data["type"]
     if type == "host":
-        # TODO: Find new port, create session and send port back to host
         roomName = generateRoomName()
         roomPort = generatePortNumber()
         roomToPort[roomName] = roomPort
         ret = gameRoom(conn, roomPort, roomName, data["user"])
+        if ret == errorCodes.good:
+            print("Game ended in room " + str(roomName) + " successfully")
+            return
 
     elif type == "guest":
-        # TODO: Get room code, find matching port and send back
         roomName = data["name"]
         try:
             roomPort = roomToPort[roomName]
@@ -103,7 +104,11 @@ def handleInbound(conn):
         handleError(conn, returnMessage, errorCodes.invalidType)
 
 def closeRoom(roomSocket, connectionList):
+    returnMessgae = dict()
+    returnMessgae["status"] = "error"
+    returnMessgae["error"] = errorCodes.roomShutdown
     for conn in connectionList:
+        conn[0].send(json.dumps(returnMessgae))
         conn[0].close()
     roomSocket.close()
 
@@ -147,6 +152,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
     # Need to get the number of players connecting from host
     while not hostConnected:
         conn, addr = roomSocket.accept()
+        print("Guest attempting to connect in room " + roomName)
         returnMessage = dict()
         returnMessage["status"] = "connected"
         conn.send(json.dumps(returnMessage))
@@ -160,8 +166,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
             handleError(conn, returnMessage, errorCodes.jsonError)
             continue
         else:
-            # Valid json
-            a = 0
+            pass
 
         # TODO: add error checking if numberOfPlayers exceeds max allowed
         print("User " + data["user"] + " is attempting to connect")
@@ -180,34 +185,70 @@ def gameRoom(conn, roomPort, roomName, hostName):
     print("Host connected to game room " + roomName)
 
     while len(playerList) != numberOfPlayers:
-        conn, addr = roomSocket.accept()
+        connG, addrG = roomSocket.accept()
         returnMessage = dict()
         returnMessage["status"] = "connected"
-        conn.send(json.dumps(returnMessage))
+        connG.send(json.dumps(returnMessage))
 
-        data = conn.recv(2048)
+        data = connG.recv(2048)
 
         try:
             data = json.loads(data)
         except ValueError:
             print("Error parsing data")
-            handleError(conn, returnMessage, errorCodes.jsonError)
+            handleError(connG, returnMessage, errorCodes.jsonError)
             return
         else:
-            # Valid json
-            a = 0
-
-        # TODO: added error checking for badly formatted json or missing tags
+            pass
         playerList.append(data["user"])
-        connectionList.append((conn, addr))
+        connectionList.append((connG, addrG))
+        returnMessage.clear()
+        returnMessage["status"] = "success"
+        connG.send(json.dumps(returnMessage))
 
     print("Players connected. Final list of players : " + str(playerList))
     # do stuff
 
-    #temp code to test
+    #test stuff
+    returnMessage.clear()
+    returnMessage["status"] = "game"
+    messageRoom(connectionList, returnMessage)
+    testPrompts = getRoomResults(connectionList)
+    print("Got back from room:")
+    print(str(testPrompts))
+    returnMessage.clear()
+    returnMessage["status"] = "end"
+    messageRoom(connectionList, returnMessage)
     closeRoom(roomSocket, connectionList)
     return errorCodes.good
 
+#the return message passed to this function should be populated already
+def messageRoom(connectionList, returnMessage):
+    for conn in connectionList:
+        conn[0].send(json.dumps(returnMessage))
+
+def getUserResult(conn, resultList):
+    data = conn.recv(2048)
+    try:
+        data = json.loads(data)
+    except ValueError:
+        print("Error parsing data")
+        #TODO: figure out how to handle
+    else:
+        pass
+
+    resultList[data["user"]] = data["data"]
+    return
+
+
+def getRoomResults(connectionList):
+    roomResults = dict()
+    for conn in connectionList:
+        start_new_thread(getUserResult, (conn[0], roomResults,))
+    while len(roomResults) != len(connectionList):
+        #Busy wait for now
+        pass
+    return roomResults
 
 # Pull words from database and store in list for each session to use
 # Will be modified later to enable constriants and modifiers
