@@ -118,7 +118,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
 
     roomSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        print("binding with: " + str((masterConfig.host, str(roomPort))))
+        #print("binding with: " + str((masterConfig.host, str(roomPort))))
         roomSocket.bind((masterConfig.host, roomPort))
     except socket.error as e:
         print("Failed to bind socket. Error: " + str(e[0]) + " , " + e[1])
@@ -148,6 +148,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
     numberOfPlayers = 0
     roomSocket.listen(10)
     print("Room " + roomName + " listening")
+
     # Wait for host to connect before letting anyone else in game room.
     # Need to get the number of players connecting from host
     while not hostConnected:
@@ -186,12 +187,11 @@ def gameRoom(conn, roomPort, roomName, hostName):
 
     while len(playerList) != numberOfPlayers:
         connG, addrG = roomSocket.accept()
-        returnMessage = dict()
+        returnMessage.clear()
         returnMessage["status"] = "connected"
         connG.send(json.dumps(returnMessage))
 
         data = connG.recv(2048)
-
         try:
             data = json.loads(data)
         except ValueError:
@@ -207,7 +207,8 @@ def gameRoom(conn, roomPort, roomName, hostName):
         connG.send(json.dumps(returnMessage))
 
     print("Players connected. Final list of players : " + str(playerList))
-    # do stuff
+
+
 
     #test stuff
     returnMessage.clear()
