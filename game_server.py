@@ -1,4 +1,4 @@
-import sys, socket, signal, json, MySQLdb
+import sys, socket, signal, json, MySQLdb, time
 import masterConfig, errorCodes, dbConfig
 from random import randint
 from setup import setup
@@ -108,9 +108,68 @@ def closeRoom(roomSocket, connectionList):
     returnMessgae["status"] = "error"
     returnMessgae["error"] = errorCodes.roomShutdown
     for conn in connectionList:
-        conn[0].send(json.dumps(returnMessgae))
-        conn[0].close()
+        conn[1][0].send(json.dumps(returnMessgae))
+        conn[1][0].close()
     roomSocket.close()
+
+def getRandomWord(wordList, usedWords):
+    randIndex = randint(0, len(wordList) - 1)
+    if wordList[randIndex] in usedWords:
+        return getRandomWord(wordList, usedWords)
+    else:
+        return wordList[randIndex]
+
+def playGame(roomSocket, connectionList, playerList):
+    wordList = createList()
+    usedWords = []
+    returnMessage = dict()
+    returnMessage["status"] = "begin"
+    returnMessage["recipient"] = "all"
+    returnMessage["rounds"] = str(masterConfig.maxNumberOfRounds)  #this is only for now until the game is ready. Normally would be upto the host
+    messageRoom(connectionList, returnMessage)
+    time.wait(2)
+    round = 0
+    while round < masterConfig.maxNumberOfRounds:  #again, temporary
+        userScores = dict()
+        for user in connectionList:
+            userScores[user[0]] = 0
+        judgeIndex = 0
+        while judgeIndex < len(connectionList):
+            word = getRandomWord(wordList, usedWords)
+            usedWords.append(word)
+            judgeName = connectionList[judgeIndex][0]
+            returnMessage.clear()
+            returnMessage["status"] = "word"
+            returnMessage["judge"] = judgeName
+            returnMessage["recipient"] = "all"
+            returnMessage["word"] = word
+            messageRoom(connectionList, returnMessage)
+
+            userDefinitions = getRoomResults(connectionList)
+            userDefinitions.pop(judgeName)
+
+            returnMessage.clear()
+            returnMessage["status"] = "judge"
+            returnMessage["recipient"] = "all"
+            returnMessage["definitions"] = userDefinitions.items()
+            messageRoom(connectionList, returnMessage)
+            judgeResult = getRoomResults(connectionList)
+
+            winner = judgeResult[judgeName][0]
+            userScores[winner] += 1
+            returnMessage.clear()
+            returnMessage["status"] = "result"
+            returnMessage["winner"] = judgeResult[judgeName]
+            messageRoom(connectionList, returnMessage)
+
+            judgeIndex += 1
+
+        returnMessage.clear()
+        returnMessage["status"] = "score"
+        returnMessage["score"] = userScores
+        messageRoom(connectionList, returnMessage)
+
+        round += 1
 
 def gameRoom(conn, roomPort, roomName, hostName):
     # initial room setup
@@ -136,13 +195,8 @@ def gameRoom(conn, roomPort, roomName, hostName):
     # Close this connection so that only the new game room is used
     conn.close()
 
-    playerList = []
+    #playerList = []
     connectionList = []
-
-    wordList = createList()
-    if len(wordList) == 0:
-        a = 0
-        # TODO: add error handling code for this case. Probably return server error to clients or take room down or something
 
     hostConnected = False
     numberOfPlayers = 0
@@ -174,8 +228,8 @@ def gameRoom(conn, roomPort, roomName, hostName):
         if data["user"] != hostName:
             handleError(conn, returnMessage, errorCodes.hostNotConnected)
         else:
-            playerList.append(data["user"])
-            connectionList.append((conn, addr))
+            #playerList.append(data["user"])
+            connectionList.append((data["user"], (conn, addr)))
             numberOfPlayers = data["numberOfPlayers"]
 
             returnMessage.clear()
@@ -185,7 +239,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
 
     print("Host connected to game room " + roomName)
 
-    while len(playerList) != numberOfPlayers:
+    while len(connectionList) != numberOfPlayers:
         connG, addrG = roomSocket.accept()
         returnMessage.clear()
         returnMessage["status"] = "connected"
@@ -200,36 +254,37 @@ def gameRoom(conn, roomPort, roomName, hostName):
             return
         else:
             pass
-        playerList.append(data["user"])
-        connectionList.append((connG, addrG))
+        #playerList.append(data["user"])
+        connectionList.append((data["user"], (connG, addrG)))
         returnMessage.clear()
         returnMessage["status"] = "success"
         connG.send(json.dumps(returnMessage))
 
-    print("Players connected. Final list of players : " + str(playerList))
+    print("Players connected. Final list of players : " + str(connectionList))
 
-
+    playGame(roomSocket, connectionList)
+    closeRoom(roomSocket, connectionList)
 
     #test stuff
-    returnMessage.clear()
-    returnMessage["status"] = "game"
-    messageRoom(connectionList, returnMessage)
-    testPrompts = getRoomResults(connectionList)
-    print("Got back from room:")
-    print(str(testPrompts))
-    returnMessage.clear()
-    returnMessage["status"] = "end"
-    messageRoom(connectionList, returnMessage)
-    closeRoom(roomSocket, connectionList)
+    # returnMessage.clear()
+    # returnMessage["status"] = "game"
+    # messageRoom(connectionList, returnMessage)
+    # testPrompts = getRoomResults(connectionList)
+    # print("Got back from room:")
+    # print(str(testPrompts))
+    # returnMessage.clear()
+    # returnMessage["status"] = "end"
+    # messageRoom(connectionList, returnMessage)
+    # closeRoom(roomSocket, connectionList)
     return errorCodes.good
 
 #the return message passed to this function should be populated already
 def messageRoom(connectionList, returnMessage):
     for conn in connectionList:
-        conn[0].send(json.dumps(returnMessage))
+        conn[1][0].send(json.dumps(returnMessage))
 
 def getUserResult(conn, resultList):
-    data = conn.recv(2048)
+    data = conn.recv(4056)
     try:
         data = json.loads(data)
     except ValueError:
@@ -245,7 +300,7 @@ def getUserResult(conn, resultList):
 def getRoomResults(connectionList):
     roomResults = dict()
     for conn in connectionList:
-        start_new_thread(getUserResult, (conn[0], roomResults,))
+        start_new_thread(getUserResult, (conn[1][0], roomResults,))
     while len(roomResults) != len(connectionList):
         #Busy wait for now
         pass

@@ -1,5 +1,6 @@
-import socket, json, sys
+import socket, json, sys, time
 import errorCodes, masterConfig
+
 
 def getType():
     type = raw_input("Are you a host or a guest?")
@@ -9,7 +10,8 @@ def getType():
     else:
         return type
 
-def connectToRoom(roomName, roomPort, name, host = False, numPlayers = 1):
+
+def connectToRoom(roomName, roomPort, name, host=False, numPlayers=1):
     print("trying to connect on port: " + str(roomPort))
     roomSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     roomSock.connect((masterConfig.host, roomPort))
@@ -65,6 +67,7 @@ def playAsHost(sock, name):
         sys.exit(-1)
     return roomSock
 
+
 def playAsGuest(sock, name):
     roomName = raw_input("Which room do you want to connect to?\n")
     message = dict()
@@ -91,8 +94,10 @@ def playAsGuest(sock, name):
         sys.exit(-1)
     return roomSock
 
-def playGame(roomSocket, name):
+
+def playGame(roomSocket, name, type):
     continueGame = True
+    returnMessage = dict()
     while continueGame:
         data = roomSocket.recv(2048)
         try:
@@ -108,13 +113,13 @@ def playGame(roomSocket, name):
                 print("Success")
                 return
 
-        if data["status"] == "game":
-            prompt = raw_input("Enter a message")
-            returnMessage = dict()
-            returnMessage["user"] = name
-            returnMessage["data"] = prompt
-            roomSocket.send(json.dumps(returnMessage))
-            continue
+        # if data["status"] == "game":
+        #     prompt = raw_input("Enter a message\n")
+        #     returnMessage = dict()
+        #     returnMessage["user"] = name
+        #     returnMessage["data"] = prompt
+        #     roomSocket.send(json.dumps(returnMessage))
+        #     continue
 
         if data["status"] == "end":
             print("Game ended by server")
@@ -122,6 +127,34 @@ def playGame(roomSocket, name):
             continueGame = False
             continue
 
+        if data["status"] == "begin":
+            print("Game starting!\n\n")
+            print("Here are the rules:\n")
+            print("Each round will have one judge.\n")
+            print("Everyone else will get a word  or group of words.\n")
+            print("They have to write down what they think the word(s) mean.\n")
+            print("You only get one shot! You can't write down multiple answers, so pick your best one.")
+            print("Once everyone has entered an answer, the judge will pick what they like the best.\n")
+            print("Then we choose another judge and go again! The game ends after %d cycles.\n" % data["rounds"])
+            print("The player who was the most chosen wins!\n\n")
+            continue
+
+        if data["status"] == "word:":
+            if data["judge"] == name:
+                print("\nPsst! You're the judge this round!\n")
+                print("You can't enter an answer so sit tight until everyone is done.\n")
+                print("Here's what everyone is thinking about right now: \n")
+                print(data["word"] + "\n\n")
+            else:
+                print("What do you think this is?\n")
+                print(data["word"] + "\n")
+                time.sleep(2)
+                answer = raw_input("Enter your answer now:\n")
+                returnMessage.clear()
+                returnMessage["user"] = name
+                returnMessage["data"] = answer
+                roomSocket.send(json.dumps(returnMessage))
+            continue
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect((masterConfig.host, masterConfig.hostPort))
@@ -141,7 +174,7 @@ print("Connected to server")
 
 try:
     name = raw_input("What's your name?\n")
-except :
+except:
     print("Error with input. Exiting")
     e = sys.exc_info()[0]
     print(e)
@@ -151,8 +184,7 @@ if type == "host":
     sock = playAsHost(sock, name)
 
 elif type == "guest":
-    #do guest stuff
+    # do guest stuff
     sock = playAsGuest(sock, name)
 print("playing game")
-playGame(sock, name)
-    
+playGame(sock, name, type)
