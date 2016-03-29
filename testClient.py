@@ -145,6 +145,10 @@ def playGame(roomSocket, name, type):
                 print("You can't enter an answer so sit tight until everyone is done.\n")
                 print("Here's what everyone is thinking about right now: \n")
                 print(data["word"] + "\n\n")
+                returnMessage.clear()
+                returnMessage["user"] = name
+                returnMessage["data"] = "NULL"
+                roomSocket.send(json.dumps(returnMessage))
             else:
                 print("What do you think this is?\n")
                 print(data["word"] + "\n")
@@ -155,6 +159,33 @@ def playGame(roomSocket, name, type):
                 returnMessage["data"] = answer
                 roomSocket.send(json.dumps(returnMessage))
             continue
+
+        if data["status"] == "judge":
+            defPairs = data["definitions"]
+            if data["judge"] != name:
+                print("The judge is going through the answers!\n")
+                print("Here's what everyone wrote:\n")
+                for i in range(0, len(defPairs)):
+                    print(("\t%d" % i + 1) + defPairs[i][1] + "\n\n")
+                returnMessage.clear()
+                returnMessage["user"] = name
+                returnMessage["data"] = "NULL"
+                roomSocket.send(json.dumps())
+            else:
+                print("Now it's your turn!\n")
+                print("Here's what everyone else wrote. Pick the one that you like best.\n")
+                for i in range(0, len(defPairs)):
+                    print(("\t%d" % i + 1) + defPairs[i][1] + "\n\n")
+                answer = raw_input("Pick an answer by typing in the number in front of it.\n")
+                goodAnswer = (answer > 0 and answer <= len(defPairs)) and answer.isdigit()
+                while not goodAnswer:
+                    answer = raw_input("That's not a valid option. Choose again.\n")
+                    goodAnswer = (answer > 0 and answer <= len(defPairs)) and answer.isdigit()
+                returnMessage.clear()
+                returnMessage["user"] = name
+                returnMessage["data"] = defPairs[answer - 1]
+                roomSocket.send(json.dumps(returnMessage))
+
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect((masterConfig.host, masterConfig.hostPort))

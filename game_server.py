@@ -151,6 +151,7 @@ def playGame(roomSocket, connectionList, playerList):
             returnMessage.clear()
             returnMessage["status"] = "judge"
             returnMessage["recipient"] = "all"
+            returnMessage["judge"] = judgeName
             returnMessage["definitions"] = userDefinitions.items()
             messageRoom(connectionList, returnMessage)
             judgeResult = getRoomResults(connectionList)
@@ -159,7 +160,8 @@ def playGame(roomSocket, connectionList, playerList):
             userScores[winner] += 1
             returnMessage.clear()
             returnMessage["status"] = "result"
-            returnMessage["winner"] = judgeResult[judgeName]
+            returnMessage["winnerName"] = winner
+            returnMessage["definitions"] = userDefinitions.items()
             messageRoom(connectionList, returnMessage)
 
             judgeIndex += 1
