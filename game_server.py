@@ -119,22 +119,24 @@ def getRandomWord(wordList, usedWords):
     else:
         return wordList[randIndex]
 
-def playGame(roomSocket, connectionList, playerList):
+def playGame(roomSocket, connectionList):
     wordList = createList()
     usedWords = []
     returnMessage = dict()
     returnMessage["status"] = "begin"
     returnMessage["recipient"] = "all"
-    returnMessage["rounds"] = str(masterConfig.maxNumberOfRounds)  #this is only for now until the game is ready. Normally would be upto the host
+    returnMessage["rounds"] = masterConfig.maxNumberOfRounds  #this is only for now until the game is ready. Normally would be upto the host
     messageRoom(connectionList, returnMessage)
-    time.wait(2)
+    time.sleep(2)
     round = 0
     while round < masterConfig.maxNumberOfRounds:  #again, temporary
+        # print("starting a round")
         userScores = dict()
         for user in connectionList:
             userScores[user[0]] = 0
         judgeIndex = 0
         while judgeIndex < len(connectionList):
+            # print("starting a cycle")
             word = getRandomWord(wordList, usedWords)
             usedWords.append(word)
             judgeName = connectionList[judgeIndex][0]
@@ -144,17 +146,19 @@ def playGame(roomSocket, connectionList, playerList):
             returnMessage["recipient"] = "all"
             returnMessage["word"] = word
             messageRoom(connectionList, returnMessage)
-
+            # print("send word to room")
             userDefinitions = getRoomResults(connectionList)
             userDefinitions.pop(judgeName)
-
+            # print("got word results from room")
             returnMessage.clear()
             returnMessage["status"] = "judge"
             returnMessage["recipient"] = "all"
             returnMessage["judge"] = judgeName
             returnMessage["definitions"] = userDefinitions.items()
             messageRoom(connectionList, returnMessage)
+            # print("sent info to judge")
             judgeResult = getRoomResults(connectionList)
+            # print("got judge stuff back")
 
             winner = judgeResult[judgeName][0]
             userScores[winner] += 1
@@ -286,15 +290,17 @@ def messageRoom(connectionList, returnMessage):
         conn[1][0].send(json.dumps(returnMessage))
 
 def getUserResult(conn, resultList):
-    data = conn.recv(4056)
+    data = conn.recv(4096)
+    print(str(data))
     try:
         data = json.loads(data)
-    except ValueError:
+    except ValueError as e:
         print("Error parsing data")
+        print("Error: " + str(e))
         #TODO: figure out how to handle
     else:
         pass
-
+    print(str(data))
     resultList[data["user"]] = data["data"]
     return
 

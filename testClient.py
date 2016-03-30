@@ -104,6 +104,7 @@ def playGame(roomSocket, name, type):
             data = json.loads(data)
         except ValueError:
             print("Error parsing data")
+            print(str(data))
             sys.exit(-1)
         else:
             pass
@@ -133,13 +134,13 @@ def playGame(roomSocket, name, type):
             print("Each round will have one judge.\n")
             print("Everyone else will get a word  or group of words.\n")
             print("They have to write down what they think the word(s) mean.\n")
-            print("You only get one shot! You can't write down multiple answers, so pick your best one.")
-            print("Once everyone has entered an answer, the judge will pick what they like the best.\n")
+            print("You only get one shot! \nYou can't write down multiple answers, so pick your best one.\n")
+            print("Once everyone has entered an answer, \nthe judge will pick what they like the best.\n")
             print("Then we choose another judge and go again! The game ends after %d cycles.\n" % data["rounds"])
             print("The player who was the most chosen wins!\n\n")
             continue
 
-        if data["status"] == "word:":
+        if data["status"] == "word":
             if data["judge"] == name:
                 print("\nPsst! You're the judge this round!\n")
                 print("You can't enter an answer so sit tight until everyone is done.\n")
@@ -152,7 +153,7 @@ def playGame(roomSocket, name, type):
             else:
                 print("What do you think this is?\n")
                 print(data["word"] + "\n")
-                time.sleep(2)
+                time.sleep(3)
                 answer = raw_input("Enter your answer now:\n")
                 returnMessage.clear()
                 returnMessage["user"] = name
@@ -162,30 +163,40 @@ def playGame(roomSocket, name, type):
 
         if data["status"] == "judge":
             defPairs = data["definitions"]
+            # print(str(defPairs))
             if data["judge"] != name:
                 print("The judge is going through the answers!\n")
                 print("Here's what everyone wrote:\n")
                 for i in range(0, len(defPairs)):
-                    print(("\t%d" % i + 1) + defPairs[i][1] + "\n\n")
+                    # print(str(defPairs[i][1]))
+                    print(("\t%d : " % (i + 1)) + defPairs[i][1] + "\n\n")
                 returnMessage.clear()
                 returnMessage["user"] = name
                 returnMessage["data"] = "NULL"
-                roomSocket.send(json.dumps())
+                roomSocket.send(json.dumps(returnMessage))
             else:
                 print("Now it's your turn!\n")
                 print("Here's what everyone else wrote. Pick the one that you like best.\n")
                 for i in range(0, len(defPairs)):
-                    print(("\t%d" % i + 1) + defPairs[i][1] + "\n\n")
+                    print(("\t%d : " % (i + 1)) + defPairs[i][1] + "\n\n")
                 answer = raw_input("Pick an answer by typing in the number in front of it.\n")
-                goodAnswer = (answer > 0 and answer <= len(defPairs)) and answer.isdigit()
+                goodAnswer = answer.isdigit() and (int(answer) > 0 and int(answer) <= len(defPairs))
                 while not goodAnswer:
                     answer = raw_input("That's not a valid option. Choose again.\n")
-                    goodAnswer = (answer > 0 and answer <= len(defPairs)) and answer.isdigit()
+                    goodAnswer = answer.isdigit() and (int(answer) > 0 and int(answer) <= len(defPairs))
                 returnMessage.clear()
                 returnMessage["user"] = name
-                returnMessage["data"] = defPairs[answer - 1]
+                returnMessage["data"] = defPairs[int(answer) - 1]
                 roomSocket.send(json.dumps(returnMessage))
+            continue
 
+        if data["status"] == "result":
+            print("\n\nThe winner is:")
+            print("\t" + data["winnerName"] + "\n\n")
+            print("What everyone wrote:\n")
+            defPairs = data["definitions"]
+            for pair in defPairs:
+                print("\t" + pair[0] + " : " + pair[1] + "\n\n")
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect((masterConfig.host, masterConfig.hostPort))
