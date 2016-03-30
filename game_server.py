@@ -47,7 +47,7 @@ def handleError(conn, returnMessage, errorCode, close=True):
     returnMessage.clear()
     returnMessage["status"] = "error"
     returnMessage["error"] = errorCode
-    conn.send(json.dumps(returnMessage))
+    conn.sendall(json.dumps(returnMessage))
     if close:
         conn.close()
 
@@ -56,7 +56,7 @@ def handleError(conn, returnMessage, errorCode, close=True):
 def handleInbound(conn):
     returnMessage = dict()
     returnMessage["status"] = "connected"
-    conn.send(json.dumps(returnMessage))  # send only takes string
+    conn.sendall(json.dumps(returnMessage))  # sendall only takes string
 
     data = conn.recv(2048)
 
@@ -99,7 +99,7 @@ def handleInbound(conn):
         returnMessage["status"] = "success"
         returnMessage["name"] = roomName
         returnMessage["port"] = roomPort
-        conn.send(json.dumps(returnMessage))
+        conn.sendall(json.dumps(returnMessage))
     else:
         handleError(conn, returnMessage, errorCodes.invalidType)
 
@@ -108,7 +108,7 @@ def closeRoom(roomSocket, connectionList):
     returnMessgae["status"] = "error"
     returnMessgae["error"] = errorCodes.roomShutdown
     for conn in connectionList:
-        conn[1][0].send(json.dumps(returnMessgae))
+        conn[1][0].sendall(json.dumps(returnMessgae))
         conn[1][0].close()
     roomSocket.close()
 
@@ -126,7 +126,7 @@ def playGame(roomSocket, connectionList):
     returnMessage["status"] = "begin"
     returnMessage["recipient"] = "all"
     returnMessage["rounds"] = masterConfig.maxNumberOfRounds  #this is only for now until the game is ready. Normally would be upto the host
-    messageRoom(connectionList, returnMessage)
+    messageRoom(connectionList, returnMessage.copy())
     time.sleep(2)
     round = 0
     while round < masterConfig.maxNumberOfRounds:  #again, temporary
@@ -145,8 +145,8 @@ def playGame(roomSocket, connectionList):
             returnMessage["judge"] = judgeName
             returnMessage["recipient"] = "all"
             returnMessage["word"] = word
-            messageRoom(connectionList, returnMessage)
-            # print("send word to room")
+            messageRoom(connectionList, returnMessage.copy())
+            # print("sendall word to room")
             userDefinitions = getRoomResults(connectionList)
             userDefinitions.pop(judgeName)
             # print("got word results from room")
@@ -155,7 +155,7 @@ def playGame(roomSocket, connectionList):
             returnMessage["recipient"] = "all"
             returnMessage["judge"] = judgeName
             returnMessage["definitions"] = userDefinitions.items()
-            messageRoom(connectionList, returnMessage)
+            messageRoom(connectionList, returnMessage.copy())
             # print("sent info to judge")
             judgeResult = getRoomResults(connectionList)
             # print("got judge stuff back")
@@ -166,14 +166,15 @@ def playGame(roomSocket, connectionList):
             returnMessage["status"] = "result"
             returnMessage["winnerName"] = winner
             returnMessage["definitions"] = userDefinitions.items()
-            messageRoom(connectionList, returnMessage)
+            messageRoom(connectionList, returnMessage.copy())
+            result = getRoomResults(connectionList)
 
             judgeIndex += 1
 
         returnMessage.clear()
         returnMessage["status"] = "score"
         returnMessage["score"] = userScores
-        messageRoom(connectionList, returnMessage)
+        messageRoom(connectionList, returnMessage.copy())
 
         round += 1
 
@@ -197,7 +198,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
     returnMessage["status"] = "success"
     returnMessage["port"] = roomPort
     returnMessage["name"] = str(roomName)
-    conn.send(json.dumps(returnMessage))
+    conn.sendall(json.dumps(returnMessage))
     # Close this connection so that only the new game room is used
     conn.close()
 
@@ -216,7 +217,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
         print("Guest attempting to connect in room " + roomName)
         returnMessage = dict()
         returnMessage["status"] = "connected"
-        conn.send(json.dumps(returnMessage))
+        conn.sendall(json.dumps(returnMessage))
 
         data = conn.recv(2048)
 
@@ -240,7 +241,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
 
             returnMessage.clear()
             returnMessage["status"] = "success"
-            conn.send(json.dumps(returnMessage))
+            conn.sendall(json.dumps(returnMessage))
             hostConnected = True
 
     print("Host connected to game room " + roomName)
@@ -249,7 +250,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
         connG, addrG = roomSocket.accept()
         returnMessage.clear()
         returnMessage["status"] = "connected"
-        connG.send(json.dumps(returnMessage))
+        connG.sendall(json.dumps(returnMessage))
 
         data = connG.recv(2048)
         try:
@@ -264,7 +265,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
         connectionList.append((data["user"], (connG, addrG)))
         returnMessage.clear()
         returnMessage["status"] = "success"
-        connG.send(json.dumps(returnMessage))
+        connG.sendall(json.dumps(returnMessage))
 
     print("Players connected. Final list of players : " + str(connectionList))
 
@@ -287,7 +288,7 @@ def gameRoom(conn, roomPort, roomName, hostName):
 #the return message passed to this function should be populated already
 def messageRoom(connectionList, returnMessage):
     for conn in connectionList:
-        conn[1][0].send(json.dumps(returnMessage))
+        conn[1][0].sendall(json.dumps(returnMessage))
 
 def getUserResult(conn, resultList):
     data = conn.recv(4096)

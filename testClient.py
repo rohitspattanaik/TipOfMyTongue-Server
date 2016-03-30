@@ -29,7 +29,7 @@ def connectToRoom(roomName, roomPort, name, host=False, numPlayers=1):
         message = dict()
         message["user"] = name
         message["numberOfPlayers"] = numPlayers
-        roomSock.send(json.dumps(message))
+        roomSock.sendall(json.dumps(message))
     else:
         return None
 
@@ -45,7 +45,7 @@ def playAsHost(sock, name):
     message = dict()
     message["user"] = name
     message["type"] = "host"
-    sock.send(json.dumps(message))
+    sock.sendall(json.dumps(message))
 
     data = sock.recv(2048)
     data = json.loads(data)
@@ -74,7 +74,7 @@ def playAsGuest(sock, name):
     message["user"] = name
     message["type"] = "guest"
     message["name"] = roomName
-    sock.send(json.dumps(message))
+    sock.sendall(json.dumps(message))
 
     data = sock.recv(2048)
     data = json.loads(data)
@@ -119,7 +119,7 @@ def playGame(roomSocket, name, type):
         #     returnMessage = dict()
         #     returnMessage["user"] = name
         #     returnMessage["data"] = prompt
-        #     roomSocket.send(json.dumps(returnMessage))
+        #     roomSocket.sendall(json.dumps(returnMessage))
         #     continue
 
         if data["status"] == "end":
@@ -149,7 +149,7 @@ def playGame(roomSocket, name, type):
                 returnMessage.clear()
                 returnMessage["user"] = name
                 returnMessage["data"] = "NULL"
-                roomSocket.send(json.dumps(returnMessage))
+                roomSocket.sendall(json.dumps(returnMessage))
             else:
                 print("What do you think this is?\n")
                 print(data["word"] + "\n")
@@ -158,7 +158,7 @@ def playGame(roomSocket, name, type):
                 returnMessage.clear()
                 returnMessage["user"] = name
                 returnMessage["data"] = answer
-                roomSocket.send(json.dumps(returnMessage))
+                roomSocket.sendall(json.dumps(returnMessage))
             continue
 
         if data["status"] == "judge":
@@ -173,7 +173,7 @@ def playGame(roomSocket, name, type):
                 returnMessage.clear()
                 returnMessage["user"] = name
                 returnMessage["data"] = "NULL"
-                roomSocket.send(json.dumps(returnMessage))
+                roomSocket.sendall(json.dumps(returnMessage))
             else:
                 print("Now it's your turn!\n")
                 print("Here's what everyone else wrote. Pick the one that you like best.\n")
@@ -187,7 +187,7 @@ def playGame(roomSocket, name, type):
                 returnMessage.clear()
                 returnMessage["user"] = name
                 returnMessage["data"] = defPairs[int(answer) - 1]
-                roomSocket.send(json.dumps(returnMessage))
+                roomSocket.sendall(json.dumps(returnMessage))
             continue
 
         if data["status"] == "result":
@@ -197,6 +197,15 @@ def playGame(roomSocket, name, type):
             defPairs = data["definitions"]
             for pair in defPairs:
                 print("\t" + pair[0] + " : " + pair[1] + "\n\n")
+            returnMessage.clear()
+            returnMessage["user"] = name
+            returnMessage["data"] = "good"
+            roomSocket.sendall(json.dumps(returnMessage))
+
+        if data["status"] == "score":
+            print("Here are the scores:")
+            for user, score in data["score"].iteritems():
+                print("\t%s has %d points" % (user, score))
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect((masterConfig.host, masterConfig.hostPort))
