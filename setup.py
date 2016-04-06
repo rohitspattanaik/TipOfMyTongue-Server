@@ -79,7 +79,7 @@ def populateDatabase(source):
 
 #The main function which will handle server setup.
 #After this function runs, the database will be populated
-def setup():
+def dbSetup():
 
     print("Server setup started")
 

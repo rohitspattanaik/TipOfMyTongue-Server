@@ -1,12 +1,12 @@
 import sys, socket, signal, json, MySQLdb, time
 import masterConfig, errorCodes, dbConfig
 from random import randint
-from setup import setup
+from setup import dbSetup
 from thread import *
 
-set = raw_input("Run Server Setup? \n")
+set = raw_input("Run Server DB Setup? \n")
 if set in ["Yes", "yes", "Y", "y"]:
-    setup()
+    dbSetup()
 
 roomToPort = dict()
 usedPorts = []
@@ -129,11 +129,13 @@ def playGame(roomSocket, connectionList):
     messageRoom(connectionList, returnMessage.copy())
     time.sleep(2)
     round = 0
+
+    userScores = dict()
+    for user in connectionList:
+        userScores[user[0]] = 0
+
     while round < masterConfig.maxNumberOfRounds:  #again, temporary
         # print("starting a round")
-        userScores = dict()
-        for user in connectionList:
-            userScores[user[0]] = 0
         judgeIndex = 0
         while judgeIndex < len(connectionList):
             # print("starting a cycle")
@@ -167,6 +169,8 @@ def playGame(roomSocket, connectionList):
             returnMessage["winnerName"] = winner
             returnMessage["definitions"] = userDefinitions.items()
             messageRoom(connectionList, returnMessage.copy())
+            #adding this cause of a weird problem where score isn't getting send at the end of a round
+            #putting this in fixes that for some reason so it stays for now
             result = getRoomResults(connectionList)
 
             judgeIndex += 1
@@ -360,6 +364,7 @@ sock.listen(10)
 print("Socket listening on port " + str(masterConfig.hostPort))
 
 print("Close server with ^C")
+
 while 1:
     conn, addr = sock.accept()
 

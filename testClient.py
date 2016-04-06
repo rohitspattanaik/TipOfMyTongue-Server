@@ -3,7 +3,7 @@ import errorCodes, masterConfig
 
 
 def getType():
-    type = raw_input("Are you a host or a guest?")
+    type = raw_input("Are you a host or a guest?\n")
     if type != "host" and type != "guest":
         print("The only options are host or guest. Try again")
         return getType()
@@ -12,7 +12,7 @@ def getType():
 
 
 def connectToRoom(roomName, roomPort, name, host=False, numPlayers=1):
-    print("trying to connect on port: " + str(roomPort))
+    # print("trying to connect on port: " + str(roomPort))
     roomSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     roomSock.connect((masterConfig.host, roomPort))
 
@@ -57,7 +57,7 @@ def playAsHost(sock, name):
 
     roomName = data["name"]
     roomPort = data["port"]
-    print("Your game room is: " + roomName)
+    print("\nYour room name is: " + roomName + "\n")
     numOfPlayers = int(input("How many guests do you have?(max 4)?\n")) + 1
     print("Give the room name to anyone else who wants to connect as a guest")
     sock.close()
